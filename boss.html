@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老板总览后台</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #f8fafc; font-family: "PingFang SC", sans-serif; }
+        #auth { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f0f3f5; z-index: 999; display: flex; justify-content: center; align-items: center; }
+        .box { background: #fff; padding: 40px; border: 2px solid #000; border-radius: 12px; box-shadow: 8px 8px 0px #000; width: 350px; text-align: center; }
+        .in { width: 100%; padding: 12px; font-size: 18px; border: 2px solid #000; margin: 20px 0; outline: none; text-align: center; }
+        #main { display: none; padding: 30px; }
+        .nav { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 25px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; }
+        th, td { border: 1px solid #ddd; padding: 15px; text-align: left; }
+        th { background: #f1f5f9; font-weight: bold; }
+        .row:hover { background: #f1f5f9; cursor: pointer; }
+        .link { color: #2563eb; text-decoration: underline; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="auth">
+        <div class="box"><h2>👑 管理后台验证</h2><input type="password" id="p" class="in" placeholder="输入密码..."><button onclick="login()" style="width:100%; background:#000; color:#fff; padding:12px; font-weight:bold; border:none; border-radius:4px; cursor:pointer;">进入系统</button><p id="err" style="color:red; margin-top:10px;"></p></div>
+    </div>
+
+    <div id="main">
+        <div class="nav"><h2>业绩总览</h2><button onclick="window.location.href='index.html'" style="padding:8px 15px; border:2px solid #000; background:#fff; font-weight:bold;">退出系统</button></div>
+        <div style="margin-bottom:20px;">城市：<select id="city" onchange="load()" style="padding:5px; border:2px solid #000;"><option value="上海">上海</option><option value="南京">南京</option></select></div>
+        <table>
+            <thead><tr><th>员工 (点击进详情)</th><th>今日单量</th><th>历史单量</th><th>成单率</th></tr></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const client = supabase.createClient('https://rdqnfgsichwzxrvzluyg.supabase.co', 'sb_publishable_lpKx8N7N6s3JNKbcmqyBGQ_to3pZXQk');
+        
+        async function login() {
+            const p = document.getElementById('p').value;
+            const { data } = await client.from('agents').select('id').eq('username', 'boss').eq('password', p);
+            if(data && data.length > 0) {
+                document.getElementById('auth').style.display = 'none';
+                document.getElementById('main').style.display = 'block';
+                load();
+            } else { document.getElementById('err').innerText = "❌ 密码错误"; }
+        }
+
+        async function load() {
+            const c = document.getElementById('city').value, tb = document.getElementById('tbody');
+            tb.innerHTML = '加载中...';
+            const [eRes, oRes] = await Promise.all([client.from('employees').select('*').eq('city_name', c), client.from('orders').select('*').eq('city_name', c)]);
+            const emps = eRes.data, os = oRes.data, today = new Date().toISOString().split('T')[0];
+            
+            tb.innerHTML = emps.map(e => {
+                const myOs = os.filter(o => o.employee_id === e.employee_id);
+                const tCount = myOs.filter(o => o.created_at.startsWith(today)).length;
+                const done = myOs.filter(o => o.status === 'complete').length;
+                const total = myOs.filter(o => o.status !== 'confirming').length;
+                const rate = total > 0 ? (done/total*100).toFixed(1) + '%' : '0%';
+
+                return `
+                <tr class="row" onclick="window.location.href='home.html?user=${encodeURIComponent(e.employee_id)}&from=boss'">
+                    <td class="link">${e.employee_id}</td>
+                    <td>${tCount}</td><td>${myOs.length}</td>
+                    <td style="color:${rate==='0%'?'#999':'#10b981'}; font-weight:bold;">${rate}</td>
+                </tr>`;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

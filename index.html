@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动点单系统 - 登录</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #f0f3f5; font-family: "PingFang SC", sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: #fff; width: 90%; max-width: 420px; padding: 40px; border: 2px solid #000; border-radius: 15px; box-shadow: 8px 8px 0px rgba(0,0,0,1); }
+        .title { font-size: 26px; font-weight: bold; text-align: center; margin-bottom: 30px; }
+        .tabs { display: flex; margin-bottom: 25px; border-bottom: 2px solid #ddd; }
+        .tab { flex: 1; text-align: center; padding: 12px 0; font-size: 18px; font-weight: bold; cursor: pointer; color: #aaa; }
+        .tab.active { color: #000; border-bottom: 3px solid #000; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-weight: bold; margin-bottom: 8px; }
+        .form-input, .form-select { width: 100%; padding: 12px; border: 2px solid #000; border-radius: 6px; font-size: 16px; outline: none; }
+        .main-btn { width: 100%; background: #000; color: #fff; padding: 15px; font-size: 18px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; }
+        .switch-mode { text-align: center; margin-top: 15px; color: #2563eb; cursor: pointer; font-size: 14px; font-weight: bold; }
+        #msg { color: #ef4444; text-align: center; margin-top: 15px; font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="title">业务管理系统</div>
+        <div class="tabs">
+            <div class="tab active" id="t-emp" onclick="switchRole('employee')">员工入口</div>
+            <div class="tab" id="t-agt" onclick="switchRole('agent')">代理入口</div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">城市：</label>
+            <select class="form-select" id="city"><option value="上海">上海</option><option value="南京">南京</option></select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">账号：</label>
+            <input type="text" class="form-input" id="user" placeholder="请输入...">
+        </div>
+        <div class="form-group">
+            <label class="form-label">密码：</label>
+            <input type="password" class="form-input" id="pwd" placeholder="请输入...">
+        </div>
+        <button class="main-btn" id="btn" onclick="go()">验证登录</button>
+        <div class="switch-mode" id="sw" onclick="toggle()">新员工？点击注册</div>
+        <div id="msg"></div>
+    </div>
+
+    <script>
+        const client = supabase.createClient('https://rdqnfgsichwzxrvzluyg.supabase.co', 'sb_publishable_lpKx8N7N6s3JNKbcmqyBGQ_to3pZXQk');
+        let role = 'employee', isLogin = true;
+
+        function switchRole(r) { role = r; isLogin = true; update(); }
+        function toggle() { isLogin = !isLogin; update(); }
+
+        function update() {
+            document.getElementById('t-emp').className = role==='employee'?'tab active':'tab';
+            document.getElementById('t-agt').className = role==='agent'?'tab active':'tab';
+            document.getElementById('btn').innerText = isLogin?'验证登录':'立即注册';
+            document.getElementById('sw').style.display = role==='employee'?'block':'none';
+        }
+
+        async function go() {
+            const u = document.getElementById('user').value.trim(), p = document.getElementById('pwd').value.trim(), c = document.getElementById('city').value;
+            const msg = document.getElementById('msg');
+            if(!u || !p) return msg.innerText = "🚨 账号密码不能为空";
+            msg.innerText = "处理中...";
+
+            if(!isLogin) {
+                const { data } = await client.from('employees').select('id').eq('employee_id', u);
+                if(data.length > 0) return msg.innerText = "❌ 该账号已被注册";
+                await client.from('employees').insert([{ employee_id: u, password: p, city_name: c, work_status: '在岗' }]);
+                alert("注册成功！"); window.location.href = `home.html?user=${u}`;
+            } else {
+                const table = role==='employee'?'employees':'agents';
+                const col = role==='employee'?'employee_id':'username';
+                const { data } = await client.from(table).select('*').eq(col, u).eq('password', p).eq('city_name', c);
+                if(data.length > 0) {
+                    if(role==='employee' && data[0].work_status==='离岗') return msg.innerText = "🚨 账号已停用";
+                    window.location.href = role==='employee' ? `home.html?user=${u}` : `agent.html?city=${c}&agent=${u}`;
+                } else { msg.innerText = "❌ 信息错误"; }
+            }
+        }
+    </script>
+</body>
+</html>

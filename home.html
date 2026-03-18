@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>员工接单大厅</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #f0f3f5; font-family: "PingFang SC", sans-serif; padding: 15px; }
+        .header { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card { background: #fff; padding: 20px; border-radius: 10px; border-left: 6px solid #000; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card.complete { border-left-color: #10b981; }
+        .card.failed { border-left-color: #ef4444; }
+        .info { font-size: 17px; margin-bottom: 8px; }
+        .price { color: #ef4444; font-weight: bold; font-size: 19px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-ok { flex: 1; background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn-no { flex: 1; background: #ef4444; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .fb-box { display: none; margin-top: 15px; padding: 15px; background: #f8fafc; border: 2px solid #000; border-radius: 8px; }
+        .fb-input { width: 100%; height: 80px; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; outline: none; border-radius: 4px; font-size: 15px; }
+        .submit-btn { width: 100%; padding: 12px; background: #000; color: #fff; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; }
+        .badge { float: right; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+    </style>
+</head>
+<body onclick="window.active=true">
+    <div class="header">
+        <div><h2 id="eName">载入中...</h2><p style="font-size:11px;color:#999;">点击页面激活提醒</p></div>
+        <button onclick="smartBack()" style="padding:8px 15px; border:2px solid #000; background:#fff; font-weight:bold;">🔙 返回</button>
+    </div>
+    <div id="list">正在同步订单...</div>
+
+    <script>
+        const client = supabase.createClient('https://rdqnfgsichwzxrvzluyg.supabase.co', 'sb_publishable_lpKx8N7N6s3JNKbcmqyBGQ_to3pZXQk');
+        const urlParams = new URLSearchParams(window.location.search);
+        const user = urlParams.get('user'), fromBoss = urlParams.get('from')==='boss';
+        document.getElementById('eName').innerText = "大厅 - " + user;
+
+        function smartBack() { window.location.href = fromBoss ? 'boss.html' : 'index.html'; }
+
+        const sound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        let count = 0, isFirst = true;
+
+        async function radar() {
+            const { data } = await client.from('orders').select('id').eq('employee_id', user).eq('status', 'confirming');
+            if(data && !isFirst && data.length > count) {
+                if(window.active) sound.play();
+                alert("🔔 有新订单指派！"); load();
+            }
+            if(data) count = data.length; isFirst = false;
+        }
+        setInterval(radar, 5000);
+
+        window.openFb = (id, type) => {
+            document.querySelectorAll('.fb-box').forEach(b => b.style.display = 'none');
+            const el = document.getElementById(`box_${id}`);
+            el.style.display = 'block';
+            el.setAttribute('data-type', type);
+            document.getElementById(`bl_ui_${id}`).style.display = type==='failed'?'block':'none';
+        };
+
+        window.submit = async (id, phone) => {
+            const el = document.getElementById(`box_${id}`);
+            const type = el.getAttribute('data-type');
+            const fb = document.getElementById(`in_${id}`).value.trim();
+            const bl = document.getElementById(`bl_${id}`).checked;
+
+            if(!fb) return alert("必须填写工作反馈内容！");
+
+            await client.from('orders').update({ status: type, feedback: fb }).eq('id', id);
+            if(type==='failed' && bl) {
+                await client.from('blacklist').upsert([{ contact: phone, reason: fb }]);
+                alert("已拉黑该号码！");
+            }
+            alert("处理成功"); load();
+        };
+
+        async function load() {
+            const { data: os } = await client.from('orders').select('*').eq('employee_id', user).order('created_at', {ascending:false});
+            document.getElementById('list').innerHTML = os.map(o => {
+                const isFin = o.status !== 'confirming';
+                return `
+                <div class="card ${o.status==='complete'?'complete':(o.status==='failed'?'failed':'')}">
+                    <span class="badge" style="background:${o.status==='complete'?'#d1fae5':(o.status==='failed'?'#f1f5f9':'#fee2e2')}; color:${o.status==='complete'?'#10b981':(o.status==='failed'?'#64748b':'#ef4444')}">
+                        ${o.status==='complete'?'已成单':(o.status==='failed'?'未成单':'新单待处理')}
+                    </span>
+                    <div class="info">📞 客户：<b>${o.customer_contact}</b></div>
+                    <div class="info">🏠 地址：${o.address||'--'}</div>
+                    <div class="info price">💰 价格：${o.price||'--'}</div>
+                    ${o.feedback?`<div style="font-size:13px; color:#666; background:#f5f5f5; padding:8px; border-radius:4px; margin-top:10px;">反馈：${o.feedback}</div>`:''}
+                    ${!isFin ? `
+                        <div class="btn-group">
+                            <button class="btn-ok" onclick="openFb(${o.id}, 'complete')">成单</button>
+                            <button class="btn-no" onclick="openFb(${o.id}, 'failed')">未成单</button>
+                        </div>
+                        <div class="fb-box" id="box_${o.id}">
+                            <textarea id="in_${o.id}" class="fb-input" placeholder="手动输入工作反馈（必填）..."></textarea>
+                            <div id="bl_ui_${o.id}" style="margin-bottom:10px; color:red; font-weight:bold; font-size:14px;">
+                                <input type="checkbox" id="bl_${o.id}"> 同时拉入黑名单
+                            </div>
+                            <button class="submit-btn" onclick="submit(${o.id}, '${o.customer_contact}')">提交并保存</button>
+                        </div>
+                    ` : ''}
+                </div>`;
+            }).join('');
+        }
+        load();
+    </script>
+</body>
+</html>
