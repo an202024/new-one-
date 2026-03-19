@@ -7,107 +7,262 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background-color: #f8fafc; font-family: "PingFang SC", sans-serif; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
-        .emp-row { background: #fff; padding: 15px; border-bottom: 1px dashed #ccc; display: flex; align-items: center; }
-        .name { flex: 2; font-weight: bold; font-size: 18px; }
-        .order-btn { background: #000; color: #fff; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .st-btn { padding: 5px 12px; border: 1px solid #ddd; border-radius: 20px; cursor: pointer; margin-left: 5px; font-size: 14px; }
-        .active-on { background: #10b981; color: #fff; border-color: #10b981; }
-        .active-off { background: #64748b; color: #fff; border-color: #64748b; }
-        .order-form { display: none; background: #fff; border: 2px solid #000; padding: 20px; margin-top: 10px; border-radius: 8px; }
-        .f-input { width: 100%; border: none; border-bottom: 1px solid #000; padding: 10px; font-size: 16px; margin-bottom: 15px; outline: none; }
-        .submit-btn { width: 100%; padding: 15px; background: #000; color: #fff; border: none; font-weight: bold; font-size: 16px; cursor: pointer; border-radius: 6px; }
-        /* 弹窗样式 */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-        .modal-c { background: #fff; width: 90%; max-width: 600px; padding: 20px; border-radius: 10px; border: 2px solid #000; }
+        body { background-color: #f8fafc; font-family: "PingFang SC", sans-serif; color: #333; }
+        
+        /* 顶部栏 */
+        .top-bar { background: #fff; padding: 15px 25px; border-bottom: 2px solid #000; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .top-bar h2 { font-size: 20px; font-weight: 800; }
+        .top-bar .sub-info { font-size: 13px; color: #666; margin-top: 4px; }
+        .btn-group { display: flex; gap: 12px; }
+        .nav-btn { padding: 8px 18px; border: 2px solid #000; background: #fff; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .nav-btn:hover { background: #f1f5f9; }
+        .exit-btn { background: #fff; }
+
+        .container { padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .section-title::before { content: ""; width: 4px; height: 16px; background: #2563eb; border-radius: 2px; }
+
+        /* 员工列表 */
+        .emp-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 25px; overflow: hidden; }
+        .emp-row { display: flex; align-items: center; padding: 15px 20px; border-bottom: 1px dashed #eee; }
+        .emp-name { flex: 2; font-weight: bold; font-size: 16px; }
+        .order-btn { background: #000; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .order-btn:disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+        .status-group { flex: 1; text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+        .st-btn { padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; cursor: pointer; background: #fff; font-weight: bold; color: #64748b; }
+        .st-btn.on { background: #10b981; color: #fff; border-color: #10b981; }
+        .st-btn.off { background: #64748b; color: #fff; border-color: #64748b; }
+
+        /* 下单表单 */
+        .order-form { display: none; background: #f1f5f9; padding: 20px; border-top: 1px solid #e2e8f0; }
+        .f-input { width: 100%; border: 1px solid #cbd5e1; padding: 12px; font-size: 15px; margin-bottom: 12px; outline: none; border-radius: 6px; }
+        .submit-btn { width: 100%; padding: 14px; background: #000; color: #fff; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; }
+
+        /* 今日订单监控区域 */
+        .monitor-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .sync-tag { font-size: 11px; color: #10b981; display: flex; align-items: center; gap: 4px; }
+        .sync-tag::before { content: "●"; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        .monitor-row { display: flex; align-items: center; padding: 15px 20px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        .m-info { flex: 3; }
+        .m-info b { font-size: 15px; }
+        .m-read-status { flex: 1; text-align: center; }
+        .m-time { flex: 1; color: #94a3b8; text-align: center; font-family: monospace; }
+        .m-status { flex: 1; text-align: right; font-weight: bold; }
+        
+        .badge-read { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; border: 1px solid #ddd; }
+        .unread { background: #fee2e2; color: #ef4444; border-color: #fecaca; }
+        .read { background: #d1fae5; color: #10b981; border-color: #a7f3d0; }
+
+        .s-pending { color: #d97706; } 
+        .s-complete { color: #10b981; } 
+        .s-failed { color: #ef4444; } 
+
+        /* 🌟 今日发单弹窗样式 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; width: 95%; max-width: 700px; border-radius: 16px; border: 3px solid #000; padding: 25px; max-height: 85vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .stat-bar { display: flex; gap: 15px; margin-bottom: 20px; }
+        .stat-item { flex: 1; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; }
+        .stat-num { font-size: 20px; font-weight: 800; display: block; }
+        .stat-label { font-size: 12px; color: #64748b; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .history-table th { text-align: left; padding: 12px; border-bottom: 2px solid #000; background: #f1f5f9; }
+        .history-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        .close-modal { width: 100%; margin-top: 20px; padding: 15px; background: #000; color: #fff; border: none; font-weight: bold; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div><h2>代理管控台</h2><p id="info">载入中...</p></div>
-        <div style="display:flex; gap:10px;">
-            <button class="st-btn" onclick="openHistory()" style="background:#2563eb; color:#fff;">📋 我的发单</button>
-            <button class="st-btn" onclick="window.location.href='index.html'">退出</button>
+
+    <div class="top-bar">
+        <div>
+            <h2 id="agentName">载入中...</h2>
+            <p class="sub-info" id="subInfo"></p>
+        </div>
+        <div class="btn-group">
+            <button class="nav-btn" onclick="openHistoryModal()">📋 今日发单</button>
+            <button class="nav-btn exit-btn" onclick="window.location.href='index.html'">退出系统</button>
         </div>
     </div>
-    <div id="list">正在拉取员工状态...</div>
 
-    <div id="hModal" class="modal"><div class="modal-c"><h3>今日发单明细</h3><div id="hList" style="margin:15px 0;"></div><button class="submit-btn" onclick="document.getElementById('hModal').style.display='none'">关闭</button></div></div>
+    <div class="container">
+        <div class="section-title">👤 员工列表</div>
+        <div class="emp-card" id="empList">正在拉取员工状态...</div>
+
+        <div class="section-title">
+            📋 今日订单 (回执监控)
+            <div style="flex:1; text-align:right;"><span class="sync-tag">实时同步中</span></div>
+        </div>
+        <div class="monitor-card" id="orderMonitor">正在同步今日数据...</div>
+    </div>
+
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>今日发单统计</h3>
+                <span style="font-size: 13px; color: #666;" id="todayDate"></span>
+            </div>
+            
+            <div class="stat-bar">
+                <div class="stat-item"><span class="stat-num" id="statTotal">0</span><span class="stat-label">总发单</span></div>
+                <div class="stat-item"><span class="stat-num s-complete" id="statOk">0</span><span class="stat-label">已成单</span></div>
+                <div class="stat-item"><span class="stat-num s-failed" id="statFail">0</span><span class="stat-label">未成单</span></div>
+            </div>
+
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>指派员工</th>
+                        <th>客户号码</th>
+                        <th>当前状态</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTbody">
+                    </tbody>
+            </table>
+
+            <button class="close-modal" onclick="closeHistoryModal()">关闭明细窗口</button>
+        </div>
+    </div>
 
     <script>
         const client = supabase.createClient('https://rdqnfgsichwzxrvzluyg.supabase.co', 'sb_publishable_lpKx8N7N6s3JNKbcmqyBGQ_to3pZXQk');
         const params = new URLSearchParams(window.location.search);
         const city = params.get('city'), agent = params.get('agent');
-        document.getElementById('info').innerText = `城市：${city} | 账号：${agent}`;
+
+        document.getElementById('agentName').innerText = `${city}代理：${agent}`;
+        document.getElementById('subInfo').innerText = `管理城市：${city} | 实时监控已开启`;
+        document.getElementById('todayDate').innerText = new Date().toLocaleDateString();
 
         window.toggleForm = (id) => {
             const el = document.getElementById(`f_${id}`);
-            const isV = el.style.display === 'block';
+            const isVisible = el.style.display === 'block';
             document.querySelectorAll('.order-form').forEach(f => f.style.display = 'none');
-            if(!isV) el.style.display = 'block';
+            if(!isVisible) el.style.display = 'block';
         };
 
-        // 核心：实时黑名单锁死逻辑
         async function checkBlack(id) {
             const phone = document.getElementById(`c_${id}`).value.trim();
             const btn = document.getElementById(`s_${id}`);
+            if(!phone) return;
             const { data } = await client.from('blacklist').select('contact').eq('contact', phone);
-            
             if(data && data.length > 0) {
                 btn.disabled = true;
                 btn.style.background = "#ef4444";
-                btn.innerText = "🚨 黑名单号码，严禁下单！";
-                btn.style.cursor = "not-allowed";
+                btn.innerText = "🚨 发现黑名单号码，严禁下单！";
             } else {
                 btn.disabled = false;
                 btn.style.background = "#000";
                 btn.innerText = "确认发送订单";
-                btn.style.cursor = "pointer";
             }
         }
 
-        window.send = async (id, emp) => {
-            const c = document.getElementById(`c_${id}`).value, a = document.getElementById(`a_${id}`).value, p = document.getElementById(`p_${id}`).value;
-            if(!c) return alert("联系方式必填");
-            await client.from('orders').insert([{ employee_id: emp, city_name: city, agent_username: agent, customer_contact: c, address: a, price: p, status: 'confirming' }]);
-            alert("下单成功！"); load();
-        };
-
         window.upSt = async (id, st) => {
             await client.from('employees').update({ work_status: st }).eq('id', id);
-            load();
+            loadEmps();
         };
 
-        async function openHistory() {
-            const today = new Date().toISOString().split('T')[0];
-            const { data } = await client.from('orders').select('*').eq('agent_username', agent).gte('created_at', today);
-            document.getElementById('hList').innerHTML = data.length ? data.map(o => `<div style="padding:8px; border-bottom:1px solid #eee;">员工：${o.employee_id} | 客户：${o.customer_contact} | 状态：${o.status}</div>`).join('') : '今日尚无发单';
-            document.getElementById('hModal').style.display = 'flex';
-        }
+        window.sendOrder = async (id, empId) => {
+            const c = document.getElementById(`c_${id}`).value.trim();
+            const a = document.getElementById(`a_${id}`).value.trim();
+            const p = document.getElementById(`p_${id}`).value.trim();
+            if(!c) return alert("必须填写客户联系方式！");
 
-        async function load() {
+            await client.from('orders').insert([{ 
+                employee_id: empId, city_name: city, agent_username: agent, 
+                customer_contact: c, address: a, price: p, status: 'confirming', feedback: '' 
+            }]);
+            
+            alert("订单指派成功！");
+            document.getElementById(`f_${id}`).style.display = 'none';
+            loadOrders(); 
+        };
+
+        async function loadEmps() {
             const { data: emps } = await client.from('employees').select('*').eq('city_name', city).order('id', {ascending:true});
-            document.getElementById('list').innerHTML = emps.map(e => {
+            document.getElementById('empList').innerHTML = emps.map(e => {
                 const isOff = e.work_status === '离岗';
                 return `
                 <div class="emp-row">
-                    <div class="name">${e.employee_id}</div>
-                    <button class="order-btn" ${isOff?'disabled':''} onclick="toggleForm(${e.id})">${isOff?'已封禁':'下单 ↓'}</button>
-                    <div style="flex:1.5; text-align:right;">
-                        <button class="st-btn ${!isOff?'active-on':''}" onclick="upSt(${e.id}, '在岗')">在岗</button>
-                        <button class="st-btn ${isOff?'active-off':''}" onclick="upSt(${e.id}, '离岗')">离岗</button>
+                    <div class="emp-name">${e.employee_id}</div>
+                    <button class="order-btn" ${isOff?'disabled':''} onclick="toggleForm(${e.id})">${isOff ? '封禁中' : '下单 ↓'}</button>
+                    <div class="status-group">
+                        <button class="st-btn ${!isOff?'on':''}" onclick="upSt(${e.id}, '在岗')">在岗</button>
+                        <button class="st-btn ${isOff?'off':''}" onclick="upSt(${e.id}, '离岗')">离岗</button>
                     </div>
                 </div>
                 <div class="order-form" id="f_${e.id}">
-                    <input type="text" id="c_${e.id}" class="f-input" placeholder="联系方式（输入时自动检测黑名单）" oninput="checkBlack(${e.id})">
+                    <input type="text" id="c_${e.id}" class="f-input" placeholder="客户号码" oninput="checkBlack(${e.id})">
                     <input type="text" id="a_${e.id}" class="f-input" placeholder="服务地址">
                     <input type="text" id="p_${e.id}" class="f-input" placeholder="预估价格">
-                    <button id="s_${e.id}" class="submit-btn" onclick="send(${e.id},'${e.employee_id}')">确认发送订单</button>
+                    <button id="s_${e.id}" class="submit-btn" onclick="sendOrder(${e.id},'${e.employee_id}')">确认指派订单</button>
                 </div>`;
             }).join('');
         }
-        load();
+
+        async function loadOrders() {
+            const today = new Date().toISOString().split('T')[0];
+            const { data: orders } = await client.from('orders').select('*').eq('agent_username', agent).gte('created_at', today).order('created_at', {ascending:false});
+
+            if(!orders || orders.length === 0) {
+                document.getElementById('orderMonitor').innerHTML = '<div style="padding:40px; text-align:center; color:#94a3b8;">今日尚无发单记录</div>';
+                return;
+            }
+
+            document.getElementById('orderMonitor').innerHTML = orders.map(o => {
+                const isRead = o.status !== 'confirming' || (o.feedback && o.feedback.trim() !== "");
+                const readLabel = isRead ? '<span class="badge-read read">● 已读</span>' : '<span class="badge-read unread">○ 未读</span>';
+                let statusText = "处理中", statusClass = "s-pending", icon = "⏳";
+                if(o.status === 'complete') { statusText = "已成单"; statusClass = "s-complete"; icon = "✅"; }
+                if(o.status === 'failed') { statusText = "未成单"; statusClass = "s-failed"; icon = "🔴"; }
+                const time = new Date(o.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+                return `
+                <div class="monitor-row">
+                    <div class="m-info"><b>${o.employee_id}</b> <br><span style="color:#64748b; font-size:12px;">${o.customer_contact}</span></div>
+                    <div class="m-read-status">${readLabel}</div>
+                    <div class="m-time">${time}</div>
+                    <div class="m-status ${statusClass}">${icon} ${statusText}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // 🌟 今日发单弹窗逻辑
+        async function openHistoryModal() {
+            const modal = document.getElementById('historyModal');
+            const tbody = document.getElementById('historyTbody');
+            modal.style.display = 'flex';
+            
+            const today = new Date().toISOString().split('T')[0];
+            const { data: orders } = await client.from('orders').select('*').eq('agent_username', agent).gte('created_at', today);
+
+            if(!orders) return;
+
+            // 统计
+            const total = orders.length;
+            const ok = orders.filter(o => o.status === 'complete').length;
+            const fail = orders.filter(o => o.status === 'failed').length;
+
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statOk').innerText = ok;
+            document.getElementById('statFail').innerText = fail;
+
+            tbody.innerHTML = orders.map(o => {
+                let statusName = "处理中";
+                if(o.status === 'complete') statusName = "✅ 已成单";
+                if(o.status === 'failed') statusName = "🔴 未成单";
+                return `<tr><td>${o.employee_id}</td><td>${o.customer_contact}</td><td>${statusName}</td></tr>`;
+            }).join('');
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        loadEmps();
+        loadOrders();
+        setInterval(loadOrders, 5000);
     </script>
 </body>
 </html>
